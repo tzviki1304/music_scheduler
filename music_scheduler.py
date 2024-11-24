@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import ttk, filedialog, messagebox
+from tkinter import ttk, filedialog, messagebox, Scale
 import schedule
 import time
 import os
@@ -13,11 +13,98 @@ class MusicSchedulerApp:
     def __init__(self, root):
         self.root = root
         self.root.title("מתזמן המוזיקה")
-        self.root.geometry("600x450")  # הגדלתי מעט את החלון
         
-        # הגדרת כיוון טקסט מימין לשמאל
-        self.root.tk_setPalette(background='#f0f0f0')
+        # Initialize days dictionary before creating GUI
+        self.days = {
+            'Sunday': tk.BooleanVar(),
+            'Monday': tk.BooleanVar(),
+            'Tuesday': tk.BooleanVar(),
+            'Wednesday': tk.BooleanVar(),
+            'Thursday': tk.BooleanVar(),
+            'Friday': tk.BooleanVar(),
+            'Saturday': tk.BooleanVar()
+        }
         
+        # הוספת משתנים חדשים לעיצוב
+        self.custom_colors = {
+            'slider_bg': '#2E3B4E',
+            'slider_fg': '#4B7BE5',
+            'time_bg': '#2E3B4E',
+            'time_fg': '#E0E0E0',
+            'spinbox_bg': '#1A1A2E',
+            'spinbox_fg': '#E0E0E0',
+            'frame_bg': '#1A1A2E'
+        }
+        
+        # הוספת צבעים חדשים
+        self.custom_colors.update({
+            'checkbutton_selected': '#6C63FF',
+            'checkbutton_bg': '#2E3B4E',
+            'title_fg': '#FFFFFF',
+            'volume_value_bg': '#4B7BE5'
+        })
+        
+        # הגדרת גודל ומיקום החלון במרכז המסך
+        window_width = 800
+        window_height = 600  # Changed from 700 to 600
+        screen_width = root.winfo_screenwidth()
+        screen_height = root.winfo_screenheight()
+        center_x = int(screen_width/2 - window_width/2)
+        center_y = int(screen_height/2 - window_height/2)
+        self.root.geometry(f'{window_width}x{window_height}+{center_x}+{center_y}')
+        
+        # Modern styling with gradient background
+        gradient_frame = tk.Frame(self.root, bg='#1A1A2E')
+        gradient_frame.place(relwidth=1, relheight=1)
+        
+        style = ttk.Style()
+        style.theme_use('clam')
+        
+        # Configure modern styles with hover effects
+        style.configure('Modern.TButton',
+            font=('Helvetica', 11, 'bold'),
+            background='#4B7BE5',
+            foreground='white',
+            padding=10,
+            borderwidth=0)
+            
+        style.map('Modern.TButton',
+            background=[('active', '#6C63FF')],
+            foreground=[('active', '#FFFFFF')])
+            
+        style.configure('Modern.TFrame',
+            background='#1A1A2E')
+            
+        style.configure('Modern.TLabel',
+            font=('Helvetica', 11),
+            background='#1A1A2E',
+            foreground='#E0E0E0')
+            
+        style.configure('Modern.TLabelframe',
+            background='#16213E',
+            foreground='#E0E0E0',
+            font=('Helvetica', 12, 'bold'))
+            
+        style.configure('Modern.TLabelframe.Label',
+            background='#16213E',
+            foreground='#E0E0E0')
+            
+        # Configure Listbox colors
+        self.listbox_colors = {
+            'bg': '#16213E',
+            'fg': '#E0E0E0',
+            'selectbackground': '#4B7BE5',
+            'selectforeground': 'white'
+        }
+        
+        # Configure Volume Slider colors
+        self.slider_colors = {
+            'bg': '#16213E',
+            'fg': '#4B7BE5',
+            'troughcolor': '#2C3E50',
+            'activebackground': '#6C63FF'
+        }
+
         # אתחול pygame למוזיקה
         pygame.mixer.init()
         print("Pygame mixer initialized")
@@ -27,74 +114,246 @@ class MusicSchedulerApp:
         self.selected_days = []
         self.schedules = []
         
+        # עדכון הסגנונות
+        style = ttk.Style()
+        
+        # הגדרת סגנון חדש לכותרות
+        style.configure('Title.TLabel',
+            font=('Helvetica', 14, 'bold'),
+            background='#1A1A2E',
+            foreground=self.custom_colors['title_fg'],
+            anchor='center',
+            padding=10)
+            
+        # סגנון חדש לצ'קבוטונים
+        style.configure('Custom.TCheckbutton',
+            background=self.custom_colors['checkbutton_bg'],
+            foreground='white',
+            font=('Helvetica', 10),
+            padding=5)
+            
+        style.map('Custom.TCheckbutton',
+            background=[('selected', self.custom_colors['checkbutton_selected'])],
+            foreground=[('selected', 'white')])
+            
         self.create_gui()
         self.load_settings()
     
     def create_gui(self):
-        # מסגרת ראשית
-        main_frame = ttk.Frame(self.root, padding="10")
-        main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        # Main frame configuration for center alignment
+        main_frame = ttk.Frame(self.root, style='Modern.TFrame', padding="20")
+        main_frame.grid(row=0, column=0, sticky='nsew')
+        self.root.grid_rowconfigure(0, weight=1)
+        self.root.grid_columnconfigure(0, weight=1)
         
-        # כפתור בחירת תיקייה
-        ttk.Button(main_frame, text="בחר תיקיית מוזיקה", command=self.choose_folder).grid(row=0, column=1, pady=5)
-        self.folder_label = ttk.Label(main_frame, text="לא נבחרה תיקייה", wraplength=300)
-        self.folder_label.grid(row=0, column=0, pady=5)
+        # Center all elements in main_frame
+        main_frame.grid_columnconfigure(0, weight=1)
         
-        # בחירת שעה
-        time_frame = ttk.LabelFrame(main_frame, text="בחירת שעה", padding="5")
-        time_frame.grid(row=1, column=0, columnspan=2, pady=10, sticky=(tk.W, tk.E))
+        # עדכון כותרת בחירת תיקייה
+        folder_label = ttk.Label(main_frame, 
+            text="בחירת תיקיית מוזיקה",
+            style='Title.TLabel')
+        folder_label.grid(row=0, column=0, pady=(0,10))
         
-        self.hour_var = tk.StringVar(value="00")
-        self.minute_var = tk.StringVar(value="00")
+        # Folder selection with modern button
+        folder_frame = ttk.Frame(main_frame, style='Modern.TFrame')
+        folder_frame.grid(row=0, column=0, columnspan=2, pady=10, sticky='ew')
         
-        ttk.Spinbox(time_frame, from_=0, to=23, width=5, textvariable=self.hour_var).grid(row=0, column=1)
-        ttk.Label(time_frame, text=":").grid(row=0, column=2)
-        ttk.Spinbox(time_frame, from_=0, to=59, width=5, textvariable=self.minute_var).grid(row=0, column=3)
+        ttk.Button(folder_frame, 
+            text="בחר תיקיית מוזיקה",
+            style='Modern.TButton',
+            command=self.choose_folder).grid(row=0, column=1, padx=5)
+            
+        self.folder_label = ttk.Label(folder_frame,
+            text="לא נבחרה תיקייה",
+            style='Modern.TLabel',
+            wraplength=300)
+        self.folder_label.grid(row=0, column=0, padx=5)
+
+        # Improved volume control
+        volume_frame = ttk.LabelFrame(main_frame,
+            text="עוצמת שמע",
+            style='Modern.TLabelframe',
+            padding="15")
+        volume_frame.grid(row=2, column=0, pady=15, sticky='ew')
         
-        # בחירת ימים
-        days_frame = ttk.LabelFrame(main_frame, text="בחירת ימים", padding="5")
-        days_frame.grid(row=2, column=0, columnspan=2, pady=10, sticky=(tk.W, tk.E))
+        volume_container = ttk.Frame(volume_frame, style='Modern.TFrame')
+        volume_container.grid(row=0, column=0, sticky='ew')
+        volume_frame.grid_columnconfigure(0, weight=1)
         
-        self.days = {
-            'Sunday': tk.BooleanVar(),    # שיניתי לאנגלית כי זה מה שדרוש להשוואה
-            'Monday': tk.BooleanVar(),
-            'Tuesday': tk.BooleanVar(),
-            'Wednesday': tk.BooleanVar(),
-            'Thursday': tk.BooleanVar(),
-            'Friday': tk.BooleanVar(),
-            'Saturday': tk.BooleanVar()
+        self.volume_var = tk.DoubleVar(value=0.7)
+        self.volume_slider = Scale(volume_container,
+            from_=0,
+            to=1,
+            orient='horizontal',
+            resolution=0.01,
+            variable=self.volume_var,
+            command=self.update_volume,
+            bg=self.custom_colors['slider_bg'],
+            fg='white',
+            troughcolor=self.custom_colors['volume_value_bg'],
+            activebackground=self.custom_colors['slider_fg'],
+            highlightthickness=0,
+            sliderrelief='raised',
+            sliderlength=30,
+            length=300,
+            width=15,
+            font=('Helvetica', 10))
+        self.volume_slider.grid(row=0, column=0, padx=20, sticky='ew')
+        
+        # תווית לערך הווליום
+        self.volume_label = ttk.Label(volume_container,
+            text="70%",
+            style='Modern.TLabel',
+            font=('Helvetica', 12, 'bold'))
+        self.volume_label.grid(row=0, column=1, padx=(5,20))
+        
+        # Create a container frame for time and days
+        time_days_container = ttk.Frame(main_frame, style='Modern.TFrame')
+        time_days_container.grid(row=3, column=0, pady=15, sticky='ew')
+        time_days_container.grid_columnconfigure(0, weight=1)
+        time_days_container.grid_columnconfigure(1, weight=1)
+
+        # Improved time selection
+        time_frame = ttk.LabelFrame(time_days_container,
+            text="בחירת שעה",
+            style='Modern.TLabelframe',
+            padding="15")
+        time_frame.grid(row=0, column=0, pady=15, padx=5, sticky='ew')
+        
+        time_container = ttk.Frame(time_frame, style='Modern.TFrame')
+        time_container.grid(row=0, column=0, padx=20)
+        time_frame.grid_columnconfigure(0, weight=1)
+        
+        # Custom spinbox style
+        spinbox_style = {
+            'width': 8,
+            'font': ('Helvetica', 16),
+            'justify': 'center',
+            'bg': self.custom_colors['spinbox_bg'],
+            'fg': self.custom_colors['spinbox_fg'],
+            'buttonbackground': self.custom_colors['slider_fg'],
+            'relief': 'flat',
+            'highlightthickness': 1,
+            'highlightcolor': self.custom_colors['slider_fg'],
+            'highlightbackground': self.custom_colors['slider_fg']
         }
         
-        day_names_hebrew = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת']
+        self.hour_var = tk.StringVar(value="00")
+        hour_spinbox = tk.Spinbox(time_container,
+            from_=0,
+            to=23,
+            textvariable=self.hour_var,
+            wrap=True,
+            **spinbox_style)
+        hour_spinbox.grid(row=0, column=0, padx=5)
+        
+        separator_label = ttk.Label(time_container,
+            text=":",
+            style='Modern.TLabel',
+            font=('Helvetica', 20, 'bold'))
+        separator_label.grid(row=0, column=1, padx=5)
+        
+        self.minute_var = tk.StringVar(value="00")
+        minute_spinbox = tk.Spinbox(time_container,
+            from_=0,
+            to=59,
+            textvariable=self.minute_var,
+            wrap=True,
+            **spinbox_style)
+        minute_spinbox.grid(row=0, column=2, padx=5)
+        
+        # Format spinbox values
+        def format_time(var):
+            try:
+                value = int(var.get())
+                var.set(f"{value:02d}")
+            except ValueError:
+                var.set("00")
+                
+        self.hour_var.trace('w', lambda *args: format_time(self.hour_var))
+        self.minute_var.trace('w', lambda *args: format_time(self.minute_var))
+
+        # בחירת ימים - עיצוב מחדש
+        days_frame = ttk.LabelFrame(time_days_container,
+            text="בחירת ימים",
+            style='Modern.TLabelframe',
+            padding="10")
+        days_frame.grid(row=0, column=1, pady=15, padx=5, sticky='ew')
+        
+        days_container = ttk.Frame(days_frame, style='Modern.TFrame')
+        days_container.grid(row=0, column=0)
+        days_frame.grid_columnconfigure(0, weight=1)
+        
+        day_names_hebrew = ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש']  # קיצור שמות הימים
         day_names_english = list(self.days.keys())
         
+        # יצירת שני טורים של צ'קבוקסים
         for i, (day_eng, day_heb) in enumerate(zip(day_names_english, day_names_hebrew)):
-            ttk.Checkbutton(days_frame, text=day_heb, variable=self.days[day_eng]).grid(row=0, column=i, padx=5)
+            col = i % 4
+            row = i // 4
+            cb = ttk.Checkbutton(days_container,
+                text=f"יום {day_heb}",
+                variable=self.days[day_eng],
+                style='Custom.TCheckbutton',
+                command=lambda d=day_eng: self.update_day_selection(d))
+            cb.grid(row=row, column=col, padx=10, pady=2)
         
         # כפתורי פעולה
-        action_frame = ttk.Frame(main_frame)
-        action_frame.grid(row=3, column=0, columnspan=2, pady=10)
+        action_frame = ttk.Frame(main_frame, style='Modern.TFrame')
+        action_frame.grid(row=5, column=0, pady=15, sticky='ew')
         
-        ttk.Button(action_frame, text="הוסף תזמון", command=self.add_schedule).grid(row=0, column=1, padx=5)
-        ttk.Button(action_frame, text="שמור הגדרות", command=self.save_settings).grid(row=0, column=0, padx=5)
+        # מרכוז כפתורי הפעולה
+        action_frame.grid_columnconfigure(tuple(range(5)), weight=1)
+        
+        ttk.Button(action_frame, text="הוסף תזמון", command=self.add_schedule, style='Modern.TButton').grid(row=0, column=1, padx=5)
+        ttk.Button(action_frame, text="שמור הגדרות", command=self.save_settings, style='Modern.TButton').grid(row=0, column=0, padx=5)
         
         # כפתור בדיקה
-        ttk.Button(action_frame, text="הפעל שיר לבדיקה", command=self.test_play).grid(row=0, column=2, padx=5)
+        ttk.Button(action_frame, text="הפעל שיר לבדיקה", command=self.test_play, style='Modern.TButton').grid(row=0, column=2, padx=5)
+        ttk.Button(action_frame, text="כבה מוזיקה", command=self.stop_music, style='Modern.TButton').grid(row=0, column=3, padx=5)
         
-        # רשימת תזמונים
-        self.schedule_listbox = tk.Listbox(main_frame, height=5)
-        self.schedule_listbox.grid(row=4, column=0, columnspan=2, sticky=(tk.W, tk.E))
+        # Add shuffle button
+        ttk.Button(action_frame,
+            text="ערבב והשמע",
+            style='Modern.TButton',
+            command=self.shuffle_and_play).grid(row=0, column=4, padx=5)
+
+        # Update listbox style and height
+        self.schedule_listbox = tk.Listbox(main_frame,
+            height=6,  # Reduced from 8 to 6
+            bg=self.listbox_colors['bg'],
+            fg=self.listbox_colors['fg'],
+            selectbackground=self.listbox_colors['selectbackground'],
+            selectforeground=self.listbox_colors['selectforeground'],
+            selectmode='single',
+            font=('Helvetica', 11),
+            relief='flat',
+            borderwidth=0)
+        self.schedule_listbox.grid(row=6, column=0, sticky='ew', pady=10)  # Reduced pady from 15 to 10
         
         # כפתור הסרה
-        ttk.Button(main_frame, text="הסר תזמון נבחר", command=self.remove_schedule).grid(row=5, column=0, columnspan=2, pady=5)
+        ttk.Button(main_frame, text="הסר תזמון נבחר", command=self.remove_schedule, style='Modern.TButton').grid(row=7, column=0, pady=10)
         
         # תווית סטטוס
-        self.status_label = ttk.Label(main_frame, text="מוכן", wraplength=300)
-        self.status_label.grid(row=6, column=0, columnspan=2, pady=5)
+        self.status_label = ttk.Label(main_frame, text="מוכן", style='Modern.TLabel', wraplength=300)
+        self.status_label.grid(row=8, column=0, pady=5)
         
         # תווית דיבאג
-        self.debug_label = ttk.Label(main_frame, text="", wraplength=300)
-        self.debug_label.grid(row=7, column=0, columnspan=2, pady=5)
+        self.debug_label = ttk.Label(main_frame, text="", style='Modern.TLabel', wraplength=300)
+        self.debug_label.grid(row=9, column=0, pady=5)
+
+        # Add hover effect to buttons
+        def on_enter(e):
+            e.widget.configure(background='#6C63FF')
+            
+        def on_leave(e):
+            e.widget.configure(background='#4B7BE5')
+            
+        for child in action_frame.winfo_children():
+            if isinstance(child, ttk.Button):
+                child.bind('<Enter>', on_enter)
+                child.bind('<Leave>', on_leave)
 
     def test_play(self):
         """פונקציה לבדיקת ניגון מוזיקה"""
@@ -227,6 +486,49 @@ class MusicSchedulerApp:
             except Exception as e:
                 print(f"Error in scheduler: {str(e)}")
                 self.debug_label.config(text=f"שגיאה: {str(e)}")
+
+    def stop_music(self):
+        """Function to stop the music"""
+        pygame.mixer.music.stop()
+        self.status_label.config(text="המוזיקה הופסקה")
+
+    def update_volume(self, *args):
+        """עדכון תווית הווליום והעוצמה"""
+        volume = self.volume_var.get()
+        pygame.mixer.music.set_volume(volume)
+        self.volume_label.config(text=f"{int(volume * 100)}%")
+
+    def shuffle_and_play(self):
+        """Function to shuffle and play music"""
+        if not self.music_folder:
+            messagebox.showerror("שג��אה", "נא לבחור תיקיית מוזיקה")
+            return
+            
+        try:
+            music_files = [f for f in os.listdir(self.music_folder) 
+                          if f.endswith(('.mp3', '.wav'))]
+            if music_files:
+                random.shuffle(music_files)
+                music_file = os.path.join(self.music_folder, music_files[0])
+                pygame.mixer.music.load(music_file)
+                pygame.mixer.music.play()
+                self.status_label.config(text=f"מנגן: {os.path.basename(music_file)}")
+            else:
+                messagebox.showerror("שגיאה", "לא נמצאו קבצי מוזיקה בתיקייה")
+        except Exception as e:
+            messagebox.showerror("שגיאה", f"שגיאה בהפעלת המוזיקה: {str(e)}")
+
+    def update_day_selection(self, day):
+        """עדכון חיווי ויזואלי לבחירת יום"""
+        is_selected = self.days[day].get()
+        # עדכון הסטטוס בר עם הימים שנבחרו
+        selected_days = [day_heb for day_eng, var in self.days.items() 
+                        if var.get()]
+        if (selected_days):
+            self.status_label.config(
+                text=f"ימים נבחרים: {', '.join(selected_days)}")
+        else:
+            self.status_label.config(text="לא נבחרו ימים")
 
 def main():
     root = tk.Tk()
