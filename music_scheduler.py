@@ -140,6 +140,167 @@ class MusicSchedulerApp:
         self.load_settings()
     
     def create_gui(self):
+        # Create main scrollable canvas
+        main_canvas = tk.Canvas(self.root, bg='#1A1A2E')
+        scrollbar = ttk.Scrollbar(self.root, orient="vertical", command=main_canvas.yview)
+        scrollable_frame = ttk.Frame(main_canvas, style='Modern.TFrame')
+
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: main_canvas.configure(scrollregion=main_canvas.bbox("all"))
+        )
+
+        main_canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        main_canvas.configure(yscrollcommand=scrollbar.set)
+
+        # שימוש ב-grid במקום pack
+        main_canvas.grid(row=0, column=0, sticky="nsew")
+        scrollbar.grid(row=0, column=1, sticky="ns")
+        
+        # הגדרת משקולות לגריד
+        self.root.grid_rowconfigure(0, weight=1)
+        self.root.grid_columnconfigure(0, weight=1)
+
+        # Add mouse wheel scrolling
+        def _on_mousewheel(event):
+            main_canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+        main_canvas.bind_all("<MouseWheel>", _on_mousewheel)
+
+        # Main frame configuration
+        main_frame = ttk.Frame(scrollable_frame, style='Modern.TFrame', padding="20")
+        main_frame.grid(row=0, column=0, sticky='nsew')
+        
+        # Update style configurations with more modern effects
+        style = ttk.Style()
+        style.configure('Modern.TFrame', background='#1A1A2E')
+        style.configure('ModernCard.TFrame', 
+            background='#232946',
+            relief='raised',
+            borderwidth=2)
+        
+        # Add gradient effects and shadows (using custom frame)
+        class GradientFrame(tk.Frame):
+            def __init__(self, parent, color1='#232946', color2='#2E3B4E', **kwargs):
+                super().__init__(parent, **kwargs)
+                self.bind('<Configure>', self._draw_gradient)
+                self.color1 = color1
+                self.color2 = color2
+
+            def _draw_gradient(self, event=None):
+                self.delete('gradient')
+                width = self.winfo_width()
+                height = self.winfo_height()
+                limit = width
+                (r1,g1,b1) = self.winfo_rgb(self.color1)
+                (r2,g2,b2) = self.winfo_rgb(self.color2)
+                r_ratio = float(r2-r1) / limit
+                g_ratio = float(g2-g1) / limit
+                b_ratio = float(b2-b1) / limit
+
+                for i in range(limit):
+                    nr = int(r1 + (r_ratio * i))
+                    ng = int(g1 + (g_ratio * i))
+                    nb = int(b1 + (b_ratio * i))
+                    color = "#%4.4x%4.4x%4.4x" % (nr,ng,nb)
+                    self.create_line(i,0,i,height, tags=('gradient',), fill=color)
+                self.lower('gradient')
+
+        # Combine time, days, and volume in one container
+        controls_frame = ttk.Frame(main_frame, style='ModernCard.TFrame')
+        controls_frame.grid(row=3, column=0, pady=15, sticky='ew')
+        controls_frame.grid_columnconfigure((0,1,2), weight=1)
+
+        # Create the volume slider first
+        self.volume_var = tk.DoubleVar(value=0.7)
+        self.volume_slider = Scale(controls_frame,
+            from_=0,
+            to=1,
+            orient='horizontal',
+            resolution=0.01,
+            variable=self.volume_var,
+            command=self.update_volume,
+            length=200,
+            width=15,
+            bg='#232946',
+            fg='white',
+            troughcolor='#4B7BE5',
+            activebackground='#6C63FF',
+            highlightthickness=0,
+            font=('Helvetica', 10))
+
+        # Then update its configuration
+        self.volume_slider.configure(
+            length=200,
+            bg='#232946',
+            troughcolor='#4B7BE5',
+            activebackground='#6C63FF',
+            highlightthickness=0)
+
+        # Time selection frame
+        time_frame = ttk.LabelFrame(controls_frame,
+            text="בחירת שעה",
+            style='Modern.TLabelframe',
+            padding="10")
+        time_frame.grid(row=0, column=0, padx=5, sticky='ew')
+
+        # Days selection frame
+        days_frame = ttk.LabelFrame(controls_frame,
+            text="בחירת ימים",
+            style='Modern.TLabelframe',
+            padding="10")
+        days_frame.grid(row=0, column=1, padx=5, sticky='ew')
+
+        # Volume control frame
+        volume_frame = ttk.LabelFrame(controls_frame,
+            text="עוצמת שמע",
+            style='Modern.TLabelframe',
+            padding="10")
+        volume_frame.grid(row=0, column=2, padx=5, sticky='ew')
+        
+        # Add volume slider to volume frame
+        self.volume_slider.grid(row=0, column=0, padx=5, sticky='ew')
+        
+        # Volume label
+        self.volume_label = ttk.Label(volume_frame,
+            text="70%",
+            style='Modern.TLabel',
+            font=('Helvetica', 12, 'bold'))
+        self.volume_label.grid(row=1, column=0, padx=5)
+
+        # Add hover effects to frames
+        for frame in [time_frame, days_frame, volume_frame]:
+            frame.bind('<Enter>', lambda e: e.widget.configure(style='ModernHover.TLabelframe'))
+            frame.bind('<Leave>', lambda e: e.widget.configure(style='Modern.TLabelframe'))
+
+        # Update modern styles
+        style.configure('ModernHover.TLabelframe',
+            background='#2E3B4E',
+            foreground='#FFFFFF')
+        
+        style.configure('Modern.TButton',
+            font=('Helvetica', 11, 'bold'),
+            background='#4B7BE5',
+            foreground='white',
+            padding=10,
+            borderwidth=0)
+        
+        style.map('Modern.TButton',
+            background=[('active', '#6C63FF'), ('hover', '#5A6FF0')],
+            foreground=[('active', '#FFFFFF')])
+
+        # Add subtle animations for buttons
+        def on_enter(e):
+            e.widget.configure(style='ModernHover.TButton')
+            
+        def on_leave(e):
+            e.widget.configure(style='Modern.TButton')
+
+        # Apply hover effects to all buttons
+        for child in main_frame.winfo_children():
+            if isinstance(child, ttk.Button):
+                child.bind('<Enter>', on_enter)
+                child.bind('<Leave>', on_leave)
+
         # Main frame configuration for center alignment
         main_frame = ttk.Frame(self.root, style='Modern.TFrame', padding="20")
         main_frame.grid(row=0, column=0, sticky='nsew')
@@ -399,7 +560,8 @@ class MusicSchedulerApp:
         schedule_info = {
             'time': time_str,
             'days': selected_days,
-            'folder': self.music_folder
+            'folder': self.music_folder,
+            'volume': self.volume_var.get()  # Add volume to the schedule info
         }
         
         print(f"Adding schedule: {schedule_info}")
@@ -412,7 +574,8 @@ class MusicSchedulerApp:
         self.schedule_listbox.delete(0, tk.END)
         for s in self.schedules:
             days_str = ', '.join(s['days'])
-            self.schedule_listbox.insert(tk.END, f"{s['time']} - {days_str}")
+            volume_percent = int(s.get('volume', 0.7) * 100)  # Default to 70% if not set
+            self.schedule_listbox.insert(tk.END, f"{s['time']} - {days_str} (עוצמה: {volume_percent}%)")
 
     def remove_schedule(self):
         selection = self.schedule_listbox.curselection()
@@ -454,6 +617,10 @@ class MusicSchedulerApp:
             print(f"Scheduled days: {schedule_info['days']}")
             if current_day in schedule_info['days']:
                 try:
+                    # Set the volume for this schedule
+                    volume = schedule_info.get('volume', 0.7)  # Default to 0.7 if not set
+                    pygame.mixer.music.set_volume(volume)
+                    
                     music_files = [f for f in os.listdir(schedule_info['folder']) 
                                  if f.endswith(('.mp3', '.wav'))]
                     print(f"Found {len(music_files)} music files")
@@ -501,7 +668,7 @@ class MusicSchedulerApp:
     def shuffle_and_play(self):
         """Function to shuffle and play music"""
         if not self.music_folder:
-            messagebox.showerror("שג��אה", "נא לבחור תיקיית מוזיקה")
+            messagebox.showerror("שגיאה", "נא לבחור תיקיית מוזיקה")
             return
             
         try:
