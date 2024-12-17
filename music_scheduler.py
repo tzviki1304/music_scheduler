@@ -625,12 +625,9 @@ class MusicSchedulerApp:
                                  if f.endswith(('.mp3', '.wav'))]
                     print(f"Found {len(music_files)} music files")
                     if music_files:
-                        music_file = os.path.join(schedule_info['folder'], 
-                                                random.choice(music_files))
-                        print(f"Playing: {music_file}")
-                        pygame.mixer.music.load(music_file)
-                        pygame.mixer.music.play()
-                        self.status_label.config(text=f"מנגן: {os.path.basename(music_file)}")
+                        self.music_files = music_files
+                        self.current_music_index = 0
+                        self.play_next_song(schedule_info['folder'])
                     else:
                         print("No music files found")
                         self.status_label.config(text="לא נמצאו קבצי מוזיקה")
@@ -676,14 +673,32 @@ class MusicSchedulerApp:
                           if f.endswith(('.mp3', '.wav'))]
             if music_files:
                 random.shuffle(music_files)
-                music_file = os.path.join(self.music_folder, music_files[0])
-                pygame.mixer.music.load(music_file)
-                pygame.mixer.music.play()
-                self.status_label.config(text=f"מנגן: {os.path.basename(music_file)}")
+                self.music_files = music_files
+                self.current_music_index = 0
+                self.play_next_song(self.music_folder)
             else:
                 messagebox.showerror("שגיאה", "לא נמצאו קבצי מוזיקה בתיקייה")
         except Exception as e:
             messagebox.showerror("שגיאה", f"שגיאה בהפעלת המוזיקה: {str(e)}")
+
+    def play_next_song(self, folder):
+        """Function to play the next song in the list"""
+        if self.current_music_index < len(self.music_files):
+            music_file = os.path.join(folder, self.music_files[self.current_music_index])
+            pygame.mixer.music.load(music_file)
+            pygame.mixer.music.play()
+            self.status_label.config(text=f"מנגן: {os.path.basename(music_file)}")
+            self.current_music_index += 1
+            pygame.mixer.music.set_endevent(pygame.USEREVENT)
+            pygame.event.clear()
+            while True:
+                for event in pygame.event.get():
+                    if event.type == pygame.USEREVENT:
+                        self.play_next_song(folder)
+                        return
+                time.sleep(0.1)
+        else:
+            self.status_label.config(text="סיימנו לנגן את כל השירים")
 
     def update_day_selection(self, day):
         """עדכון חיווי ויזואלי לבחירת יום"""
