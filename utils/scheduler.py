@@ -10,16 +10,18 @@ class MusicScheduler:
         self.running = False
         self._scheduler_thread = None
 
-    def add_schedule(self, time_str, days=None):
+    def add_schedule(self, time_str, days=None, stop_duration=0):
         """
         Add a new schedule for music playback.
         
         :param time_str: Time in format 'HH:MM'
         :param days: List of days to play music (e.g., ['Monday', 'Wednesday'])
+        :param stop_duration: Duration to play music in minutes (0 means play indefinitely)
         """
         schedule_info = {
             'time': time_str,
-            'days': days or []
+            'days': days or [],
+            'stop_duration': stop_duration
         }
         self.schedules.append(schedule_info)
 
@@ -43,7 +45,8 @@ class MusicScheduler:
             if time_match and day_match:
                 print(f"SCHEDULER: Playing music for schedule: {schedule_info}")
                 try:
-                    self.music_player.shuffle_and_play()
+                    # Play music with optional stop duration
+                    self.music_player.shuffle_and_play(stop_duration=schedule_info.get('stop_duration', 0))
                 except Exception as e:
                     print(f"SCHEDULER: Error playing music: {e}")
 
