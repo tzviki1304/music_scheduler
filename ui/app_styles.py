@@ -7,104 +7,132 @@ import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 class AppStyles:
+    # Modern Color Palette with Gradient Effects
+    SOFT_THEME = {
+        'primary': '#4158D0',      # Vibrant Blue
+        'secondary': '#C850C0',    # Bright Purple
+        'gradient_start': '#4158D0',
+        'gradient_end': '#C850C0',
+        'background': '#F8F9FD',   # Light Background
+        'text_primary': '#2A2A72',  # Deep Blue Text
+        'text_secondary': '#4A4A8A', # Lighter Blue Text
+        'accent': '#FF4B91',       # Pink Accent
+        'border': '#E2E8F0',      # Soft Border
+        'hover': '#3B49B8',       # Darker Blue for hover
+        'disabled': '#CBD5E0',    # Light Gray for disabled
+        'success': '#48BB78',     # Green
+        'error': '#F56565'        # Red
+    }
+
     @staticmethod
     def configure_styles():
         """Configure modern, consistent styles for the application."""
         style = ttk.Style()
         style.theme_use('clam')
 
-        # Enhanced Soft Color Palette
-        SOFT_THEME = {
-            'primary': '#A7C7E7',     # Soft Pastel Blue
-            'secondary': '#E6E6FA',   # Lavender
-            'background': '#F0F4F8',  # Very Light Blue-Gray
-            'text_primary': '#0D1321', # Very Dark Blue-Gray (Darker Text)
-            'text_secondary': '#1A2B3C', # Slightly Lighter Dark Blue-Gray
-            'accent': '#6B8E9F',      # Soft Muted Blue for accents
-            'border': '#D1D8E0'       # Light Gray Border
-        }
-
-        # Custom Scrollbar Styling
-        style.configure("Vertical.TScrollbar", 
-            background=SOFT_THEME['secondary'],
-            bordercolor=SOFT_THEME['border'],
-            arrowcolor=SOFT_THEME['text_primary'],
-            troughcolor=SOFT_THEME['background'])
-        style.map("Vertical.TScrollbar",
-            background=[('active', SOFT_THEME['accent'])])
-
-        # Horizontal Scrollbar Styling
-        style.configure("Horizontal.TScrollbar", 
-            background=SOFT_THEME['secondary'],
-            bordercolor=SOFT_THEME['border'],
-            arrowcolor=SOFT_THEME['text_primary'],
-            troughcolor=SOFT_THEME['background'])
-        style.map("Horizontal.TScrollbar",
-            background=[('active', SOFT_THEME['accent'])])
-
-        # Enhanced Button Styles with Soft Shadows
-        style.configure('Modern.TButton',
-            font=('Segoe UI', 10, 'bold'),
-            background=SOFT_THEME['primary'],
-            foreground=SOFT_THEME['text_primary'],
-            padding=(10, 6),
-            borderwidth=1,
-            relief='flat')
+        # Configure ttk styles with rounded corners and gradients
+        style.configure("TFrame", background=AppStyles.SOFT_THEME['background'])
         
+        # Modern Label Frame with rounded corners
+        style.configure("Modern.TLabelframe", 
+            background=AppStyles.SOFT_THEME['background'],
+            bordercolor=AppStyles.SOFT_THEME['border'],
+            relief="flat",
+            borderwidth=2)
+        style.configure("Modern.TLabelframe.Label", 
+            foreground=AppStyles.SOFT_THEME['text_primary'],
+            background=AppStyles.SOFT_THEME['background'],
+            font=('Segoe UI', 10, 'bold'))
+
+        # Enhanced Button Style
+        style.configure('Modern.TButton',
+            font=('Segoe UI', 10),
+            background=AppStyles.SOFT_THEME['primary'],
+            foreground='white',
+            bordercolor=AppStyles.SOFT_THEME['border'],
+            relief="flat",
+            padding=(20, 10))
         style.map('Modern.TButton',
-            background=[('active', SOFT_THEME['accent']), ('pressed', SOFT_THEME['secondary'])],
-            foreground=[('active', SOFT_THEME['text_primary'])])
+            background=[('active', AppStyles.SOFT_THEME['hover']),
+                       ('disabled', AppStyles.SOFT_THEME['disabled'])],
+            foreground=[('disabled', AppStyles.SOFT_THEME['text_secondary'])])
+
+        # Modern Entry Style
+        style.configure('Modern.TEntry',
+            fieldbackground='white',
+            bordercolor=AppStyles.SOFT_THEME['border'],
+            lightcolor=AppStyles.SOFT_THEME['border'],
+            darkcolor=AppStyles.SOFT_THEME['border'],
+            borderwidth=1,
+            relief="solid",
+            padding=5)
+
+        # Combobox with rounded corners
+        style.configure('Modern.TCombobox',
+            background='white',
+            fieldbackground='white',
+            selectbackground=AppStyles.SOFT_THEME['primary'],
+            selectforeground='white',
+            bordercolor=AppStyles.SOFT_THEME['border'],
+            arrowcolor=AppStyles.SOFT_THEME['primary'],
+            padding=5)
+        
+        # Scale (Slider) with modern look
+        style.configure('Modern.Horizontal.TScale',
+            background=AppStyles.SOFT_THEME['background'],
+            troughcolor=AppStyles.SOFT_THEME['border'],
+            bordercolor=AppStyles.SOFT_THEME['border'],
+            lightcolor=AppStyles.SOFT_THEME['primary'],
+            darkcolor=AppStyles.SOFT_THEME['primary'])
+
+        # Checkbutton with custom color
+        style.configure('Modern.TCheckbutton',
+            background=AppStyles.SOFT_THEME['background'],
+            foreground=AppStyles.SOFT_THEME['text_primary'],
+            focuscolor=AppStyles.SOFT_THEME['primary'])
+        style.map('Modern.TCheckbutton',
+            background=[('active', AppStyles.SOFT_THEME['background'])],
+            foreground=[('disabled', AppStyles.SOFT_THEME['disabled'])])
+
+        # Scrollbar with rounded design
+        style.configure("Modern.Vertical.TScrollbar",
+            background=AppStyles.SOFT_THEME['primary'],
+            bordercolor=AppStyles.SOFT_THEME['border'],
+            arrowcolor='white',
+            troughcolor=AppStyles.SOFT_THEME['background'],
+            relief="flat",
+            width=12)
+        style.map("Modern.Vertical.TScrollbar",
+            background=[('active', AppStyles.SOFT_THEME['hover']),
+                       ('pressed', AppStyles.SOFT_THEME['hover'])])
 
         # Label Styles with Enhanced Readability
         style.configure('Modern.TLabel',
             font=('Segoe UI', 10),
-            background=SOFT_THEME['background'],
-            foreground=SOFT_THEME['text_primary'])
+            background=AppStyles.SOFT_THEME['background'],
+            foreground=AppStyles.SOFT_THEME['text_primary'])
         
         style.configure('Title.TLabel',
             font=('Segoe UI', 12, 'bold'),
-            background=SOFT_THEME['background'],
-            foreground=SOFT_THEME['text_secondary'],
+            background=AppStyles.SOFT_THEME['background'],
+            foreground=AppStyles.SOFT_THEME['text_secondary'],
             anchor='center',
             padding=8)
 
         # Day Label Specific Style
         style.configure('Day.TLabel',
             font=('Segoe UI', 10, 'bold'),
-            background=SOFT_THEME['background'],
-            foreground=SOFT_THEME['text_primary'])
+            background=AppStyles.SOFT_THEME['background'],
+            foreground=AppStyles.SOFT_THEME['text_primary'])
 
         # Frame Styles
         style.configure('Modern.TFrame', 
-            background=SOFT_THEME['background'])
+            background=AppStyles.SOFT_THEME['background'])
         
         style.configure('ModernCard.TFrame', 
-            background=SOFT_THEME['secondary'],
+            background=AppStyles.SOFT_THEME['secondary'],
             relief='flat',
             borderwidth=1)
-
-        # Checkbutton Styles with Modern Design
-        style.configure('Custom.TCheckbutton',
-            background=SOFT_THEME['background'],
-            foreground=SOFT_THEME['text_primary'],
-            font=('Segoe UI', 10),
-            padding=5)
-        
-        style.map('Custom.TCheckbutton',
-            background=[('selected', SOFT_THEME['primary'])],
-            foreground=[('selected', SOFT_THEME['text_primary'])],
-            indicatorbackground=[('selected', SOFT_THEME['accent'])],
-            indicatorforeground=[('selected', 'white')])
-
-        # LabelFrame Styles
-        style.configure('Modern.TLabelframe',
-            background=SOFT_THEME['secondary'],
-            foreground=SOFT_THEME['text_primary'],
-            font=('Helvetica', 12, 'bold'))
-        
-        style.configure('Modern.TLabelframe.Label',
-            background=SOFT_THEME['secondary'],
-            foreground=SOFT_THEME['text_primary'])
 
     @staticmethod
     def add_hover_effects(widget):

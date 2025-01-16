@@ -59,200 +59,176 @@ class MusicSchedulerApp:
         self.root.resizable(True, True)  # Allow resizing
 
     def create_gui(self):
-        """Create the main GUI layout with responsive scrollable content."""
-        # Main container with both vertical and horizontal scrolling
-        main_container = ttk.Frame(self.root, style='Modern.TFrame')
-        main_container.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        """Create the main GUI elements with a modern layout."""
+        # Create main container with padding
+        main_frame = ttk.Frame(self.root, style='Modern.TFrame')
+        main_frame.pack(fill=tk.BOTH, expand=True)
 
-        # Create Canvas with both Vertical and Horizontal Scrollbars
-        canvas = tk.Canvas(main_container, highlightthickness=0)
-        v_scrollbar = ttk.Scrollbar(main_container, orient=tk.VERTICAL, command=canvas.yview)
-        h_scrollbar = ttk.Scrollbar(main_container, orient=tk.HORIZONTAL, command=canvas.xview)
+        # Create canvas with scrollbar
+        canvas = tk.Canvas(main_frame, bg=AppStyles.SOFT_THEME['background'], highlightthickness=0)
+        scrollbar = ttk.Scrollbar(main_frame, orient="vertical", command=canvas.yview, style='Modern.Vertical.TScrollbar')
         
+        # Create scrollable frame
         scrollable_frame = ttk.Frame(canvas, style='Modern.TFrame')
-
         scrollable_frame.bind(
             "<Configure>",
-            lambda e: canvas.configure(
-                scrollregion=canvas.bbox("all")
-            )
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
         )
 
+        # Add scrollable frame to canvas
         canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
-        canvas.configure(yscrollcommand=v_scrollbar.set, xscrollcommand=h_scrollbar.set)
+        canvas.configure(yscrollcommand=scrollbar.set)
 
-        # Enable mouse wheel scrolling
+        # Pack canvas and scrollbar
+        canvas.pack(side="left", fill="both", expand=True, padx=20, pady=20)
+        scrollbar.pack(side="right", fill="y", pady=20)
+
+        # Add mousewheel scrolling
         def _on_mousewheel(event):
-            canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
-
+            canvas.yview_scroll(int(-1*(event.delta/120)), "units")
         canvas.bind_all("<MouseWheel>", _on_mousewheel)
 
-        # Grid layout for scrollbars and canvas
-        main_container.grid_rowconfigure(0, weight=1)
-        main_container.grid_columnconfigure(0, weight=1)
+        # Configure canvas resize
+        def _on_canvas_configure(event):
+            canvas.itemconfig(canvas.find_withtag("all")[0], width=event.width-4)  # -4 for padding
+        canvas.bind("<Configure>", _on_canvas_configure)
 
-        canvas.grid(row=0, column=0, sticky="nsew")
-        v_scrollbar.grid(row=0, column=1, sticky="ns")
-        h_scrollbar.grid(row=1, column=0, sticky="ew")
+        # File selection section
+        file_frame = ttk.LabelFrame(scrollable_frame, text="בחירת תיקייה", style='Modern.TLabelframe')
+        file_frame.pack(fill="x", pady=(0, 20), padx=20)
+        
+        self.file_path_var = tk.StringVar()
+        path_entry = ttk.Entry(file_frame, textvariable=self.file_path_var, style='Modern.TEntry')
+        path_entry.pack(side="left", fill="x", expand=True, padx=(10, 5), pady=10)
+        
+        browse_button = ttk.Button(file_frame, text="בחר תיקייה", 
+                                 command=self.browse_directory, style='Modern.TButton')
+        browse_button.pack(side="right", padx=(5, 10), pady=10)
+        
+        # Volume control with modern slider
+        volume_frame = ttk.LabelFrame(scrollable_frame, text="עוצמת שמע", style='Modern.TLabelframe')
+        volume_frame.pack(fill="x", pady=(0, 20), padx=20)
+        
+        self.volume_var = tk.DoubleVar(value=70)
+        volume_slider = ttk.Scale(volume_frame, from_=0, to=100, orient=tk.HORIZONTAL,
+                                variable=self.volume_var, command=self.update_volume,
+                                style='Modern.Horizontal.TScale')
+        volume_slider.pack(fill="x", padx=10, pady=10)
+        
+        # Schedule controls
+        schedule_frame = ttk.LabelFrame(scrollable_frame, text="הוספת לוח זמנים", style='Modern.TLabelframe')
+        schedule_frame.pack(fill="x", pady=(0, 20), padx=20)
+        
+        time_frame = ttk.Frame(schedule_frame, style='Modern.TFrame')
+        time_frame.pack(fill="x", padx=10, pady=5)
+        
+        # Start time selection
+        start_time_frame = ttk.Frame(time_frame, style='Modern.TFrame')
+        start_time_frame.pack(side="left", padx=5)
+        
+        ttk.Label(start_time_frame, text="שעת התחלה:", style='Modern.TLabel').pack(side="left", padx=5)
+        
+        self.hour_var = tk.StringVar()
+        hour_combo = ttk.Combobox(start_time_frame, textvariable=self.hour_var, width=3, 
+                                values=[f"{i:02d}" for i in range(24)], style='Modern.TCombobox')
+        hour_combo.pack(side="left", padx=2)
+        
+        ttk.Label(start_time_frame, text=":", style='Modern.TLabel').pack(side="left")
+        
+        self.minute_var = tk.StringVar()
+        minute_combo = ttk.Combobox(start_time_frame, textvariable=self.minute_var, width=3,
+                                  values=[f"{i:02d}" for i in range(60)], style='Modern.TCombobox')
+        minute_combo.pack(side="left", padx=2)
 
-        # Existing sections
-        self._create_folder_section(scrollable_frame)
-        self._create_volume_section(scrollable_frame)
-        self._create_schedule_section(scrollable_frame)
-
-    def _create_folder_section(self, parent):
-        """Create music folder selection section."""
-        folder_frame = ttk.LabelFrame(parent, text="בחירת תיקיית מוזיקה", style='Modern.TLabelframe')
-        folder_frame.pack(fill=tk.X, pady=10)
-
-        self.folder_label = ttk.Label(folder_frame, text="לא נבחרה תיקייה", style='Modern.TLabel')
-        self.folder_label.pack(side=tk.LEFT, padx=10)
-
-        choose_folder_btn = ttk.Button(folder_frame, text="בחר תיקייה", style='Modern.TButton', command=self.choose_folder)
-        choose_folder_btn.pack(side=tk.RIGHT, padx=10)
-
-    def _create_volume_section(self, parent):
-        """Create volume control section."""
-        volume_frame = ttk.LabelFrame(parent, text="עוצמת שמע", style='Modern.TLabelframe')
-        volume_frame.pack(fill=tk.X, pady=10)
-
-        self.volume_var = tk.DoubleVar(value=self.music_player.volume)
-        volume_slider = tk.Scale(volume_frame, 
-            from_=0, to=1, 
-            orient=tk.HORIZONTAL, 
-            resolution=0.01,
-            variable=self.volume_var,
-            command=self.update_volume,
-            length=300)
-        volume_slider.pack(padx=20, pady=10)
-
-        self.volume_label = ttk.Label(volume_frame, text=f"{int(self.volume_var.get() * 100)}%", style='Modern.TLabel')
-        self.volume_label.pack(pady=5)
-
-    def _create_schedule_section(self, parent):
-        # Schedule section frame
-        schedule_frame = ttk.LabelFrame(parent, text="הוספת לוח זמנים", style="TLabelframe")
-        schedule_frame.pack(padx=10, pady=10, fill="x")
-
-        # Time input frame
-        time_frame = ttk.Frame(schedule_frame)
-        time_frame.pack(padx=10, pady=5, fill="x")
-
-        # Hours input
-        ttk.Label(time_frame, text="שעה:").pack(side="right", padx=(0, 5))
-        hours_spinbox = ttk.Spinbox(time_frame, from_=0, to=23, width=5, format="%02.0f")
-        hours_spinbox.pack(side="right", padx=(0, 10))
-
-        # Minutes input
-        ttk.Label(time_frame, text="דקות:").pack(side="right", padx=(0, 5))
-        minutes_spinbox = ttk.Spinbox(time_frame, from_=0, to=59, width=5, format="%02.0f")
-        minutes_spinbox.pack(side="right", padx=(0, 10))
-
-        # Stop duration input
-        ttk.Label(time_frame, text="עצירה אחרי (דקות):").pack(side="right", padx=(0, 5))
-        stop_duration_spinbox = ttk.Spinbox(time_frame, from_=0, to=120, width=5, format="%03.0f")
-        stop_duration_spinbox.pack(side="right", padx=(0, 10))
-
-        # Days selection
-        days_frame = ttk.Frame(schedule_frame)
-        days_frame.pack(padx=10, pady=5, fill="x")
-
-        days_label = ttk.Label(days_frame, text="ימים:")
-        days_label.pack(side="right", padx=(0, 5))
-
-        # Days checkbuttons with Hebrew names
-        days = {
-            "ראשון": "Sunday", 
-            "שני": "Monday", 
-            "שלישי": "Tuesday", 
-            "רביעי": "Wednesday", 
-            "חמישי": "Thursday", 
-            "שישי": "Friday"
-        }
-        days_vars = {}
-        for hebrew_day, english_day in days.items():
-            days_vars[english_day] = tk.BooleanVar()
-            day_check = ttk.Checkbutton(days_frame, text=hebrew_day, variable=days_vars[english_day])
-            day_check.pack(side="right", padx=5)
-
+        # End time selection
+        end_time_frame = ttk.Frame(time_frame, style='Modern.TFrame')
+        end_time_frame.pack(side="left", padx=20)
+        
+        ttk.Label(end_time_frame, text="זמן סיום (דקות):", style='Modern.TLabel').pack(side="left", padx=5)
+        
+        self.duration_var = tk.StringVar(value="60")
+        duration_combo = ttk.Combobox(end_time_frame, textvariable=self.duration_var, width=4,
+                                    values=[str(i) for i in range(0, 181, 15)], style='Modern.TCombobox')
+        duration_combo.pack(side="left", padx=2)
+        
+        # Days selection with modern checkboxes
+        days_frame = ttk.Frame(schedule_frame, style='Modern.TFrame')
+        days_frame.pack(fill="x", padx=10, pady=10)
+        
+        self.day_vars = {day: tk.BooleanVar() for day in ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי']}
+        for day, var in self.day_vars.items():
+            ttk.Checkbutton(days_frame, text=day, variable=var, style='Modern.TCheckbutton').pack(side="right", padx=5)
+        
         # Add schedule button
-        add_schedule_btn = ttk.Button(
-            schedule_frame, 
-            text="הוסף לוח זמנים", 
-            command=lambda: self.add_schedule(
-                hours_spinbox.get(), 
-                minutes_spinbox.get(), 
-                stop_duration_spinbox.get(),
-                days_vars
-            )
-        )
-        add_schedule_btn.pack(padx=10, pady=10)
+        add_button = ttk.Button(schedule_frame, text="הוסף לוח זמנים", 
+                              command=self.add_schedule, style='Modern.TButton')
+        add_button.pack(pady=10)
+        
+        # Schedule list with modern styling
+        list_frame = ttk.LabelFrame(scrollable_frame, text="לוחות זמנים", style='Modern.TLabelframe')
+        list_frame.pack(fill="both", expand=True, pady=(0, 20), padx=20)
+        
+        self.schedule_list = tk.Text(list_frame, height=10, wrap=tk.WORD,
+                                   font=('Segoe UI', 10),
+                                   bg='white',
+                                   relief="flat",
+                                   padx=10,
+                                   pady=10)
+        self.schedule_list.pack(side="left", fill="both", expand=True, padx=10, pady=10)
+        
+        list_scrollbar = ttk.Scrollbar(list_frame, orient=tk.VERTICAL, 
+                                     command=self.schedule_list.yview,
+                                     style='Modern.Vertical.TScrollbar')
+        list_scrollbar.pack(side="right", fill="y")
+        self.schedule_list.configure(yscrollcommand=list_scrollbar.set)
+        
+        # Control buttons
+        button_frame = ttk.Frame(scrollable_frame, style='Modern.TFrame')
+        button_frame.pack(fill="x", padx=20, pady=(0, 20))
+        
+        remove_button = ttk.Button(button_frame, text="הסר לוח זמנים",
+                                 command=self.remove_schedule, style='Modern.TButton')
+        remove_button.pack(side="left", padx=5)
+        
+        save_button = ttk.Button(button_frame, text="עבור מוזיקה",
+                               command=self.save_settings, style='Modern.TButton')
+        save_button.pack(side="right", padx=5)
 
-        # Schedules listbox
-        schedules_frame = ttk.Frame(schedule_frame)
-        schedules_frame.pack(padx=10, pady=5, fill="both", expand=True)
-
-        schedules_label = ttk.Label(schedules_frame, text="לוחות זמנים:")
-        schedules_label.pack()
-
-        self.schedules_listbox = tk.Listbox(schedules_frame, height=5)
-        self.schedules_listbox.pack(fill="both", expand=True)
-
-        # Remove schedule button
-        remove_schedule_btn = ttk.Button(
-            schedule_frame, 
-            text="הסר לוח זמנים", 
-            command=self.remove_schedule
-        )
-        remove_schedule_btn.pack(padx=10, pady=10)
-
-        # Stop music button
-        stop_music_btn = ttk.Button(
-            schedule_frame, 
-            text="עצור מוזיקה", 
-            command=self.stop_music
-        )
-        stop_music_btn.pack(padx=10, pady=10)
-
-        return schedule_frame
-
-    def choose_folder(self):
+    def browse_directory(self):
         """Open file dialog to choose music folder."""
         folder_path = filedialog.askdirectory()
         if folder_path:
             self.music_player.load_playlist(folder_path)
-            self.folder_label.config(text=folder_path)
+            self.file_path_var.set(folder_path)
             self.save_settings()
 
     def update_volume(self, *args):
         """Update music player volume."""
         volume = self.volume_var.get()
         self.music_player.set_volume(volume)
-        self.volume_label.config(text=f"{int(volume * 100)}%")
         self.save_settings()
 
-    def add_schedule(self, hours, minutes, stop_duration, days_vars):
+    def add_schedule(self):
         # Validate hours and minutes
         try:
-            hours = int(hours)
-            minutes = int(minutes)
-            stop_duration = int(stop_duration)
+            hours = int(self.hour_var.get())
+            minutes = int(self.minute_var.get())
             
             # Validate range
-            if not (0 <= hours <= 23 and 0 <= minutes <= 59 and stop_duration >= 0):
-                raise ValueError("Invalid time or duration range")
+            if not (0 <= hours <= 23 and 0 <= minutes <= 59):
+                raise ValueError("Invalid time range")
             
             # Format time string
             time_str = f"{hours:02d}:{minutes:02d}"
         except ValueError:
-            messagebox.showerror("שגיאה", "אנא הזן שעה, זמן וזמן עצירה תקינים")
+            messagebox.showerror("שגיאה", "אנא הזן שעה ודקות תקינים")
             return
 
         # Get selected days
-        selected_days = [day for day, var in days_vars.items() if var.get()]
+        selected_days = [day for day, var in self.day_vars.items() if var.get()]
 
         # Check if a music folder is selected
-        if self.folder_label.cget('text') == "לא נבחרה תיקייה":
+        if self.file_path_var.get() == "":
             messagebox.showerror("שגיאה", "אנא בחר תיקיית מוזיקה לפני הוספת לוח זמנים")
             return
 
@@ -261,11 +237,11 @@ class MusicSchedulerApp:
             schedule_info = {
                 'time': time_str, 
                 'days': selected_days,
-                'stop_duration': stop_duration
+                'stop_duration': int(self.duration_var.get())
             }
-            self.music_scheduler.add_schedule(time_str, selected_days, stop_duration)
-            display_days = [day for day, var in days_vars.items() if var.get()]
-            self.schedules_listbox.insert(tk.END, f"{time_str} - {', '.join(display_days)} (עצירה: {stop_duration} דקות)")
+            self.music_scheduler.add_schedule(time_str, selected_days, int(self.duration_var.get()))
+            display_days = [day for day, var in self.day_vars.items() if var.get()]
+            self.schedule_list.insert(tk.END, f"{time_str} - {', '.join(display_days)}\n")
             self.save_settings()
             
             # Restart the scheduler to pick up the new schedule
@@ -277,19 +253,31 @@ class MusicSchedulerApp:
     def remove_schedule(self):
         """Remove selected schedule."""
         try:
-            index = self.schedules_listbox.curselection()[0]
-            self.schedules_listbox.delete(index)
-            self.music_scheduler.remove_schedule(index)
+            self.schedule_list.delete('1.0', tk.END)
+            self.music_scheduler.remove_schedule(0)
             self.save_settings()
-        except IndexError:
-            messagebox.showerror("שגיאה", "אנא בחר לוח זמנים להסרה")
-
-    def stop_music(self):
-        """Stop music playback."""
-        try:
-            self.music_player.stop()
         except Exception as e:
-            messagebox.showerror("שגיאה", f"שגיאה בעצירת המוזיקה: {str(e)}")
+            messagebox.showerror("שגיאה", f"שגיאה בהסרת לוח זמנים: {str(e)}")
+
+    def save_settings(self):
+        """Save application settings to file."""
+        try:
+            settings = {
+                'volume': self.volume_var.get(),
+                'music_folder': self.file_path_var.get(),
+                'schedules': [
+                    {
+                        'time': schedule['time'], 
+                        'days': schedule['days'],
+                        'stop_duration': schedule['stop_duration']
+                    } for schedule in self.music_scheduler.get_schedules()
+                ]
+            }
+
+            with open('settings.json', 'w') as f:
+                json.dump(settings, f, indent=4)
+        except Exception as e:
+            messagebox.showerror("שגיאה", f"שגיאה בשמירת הגדרות: {str(e)}")
 
     def load_settings(self):
         """Load application settings from file."""
@@ -305,14 +293,14 @@ class MusicSchedulerApp:
             # Restore music folder
             music_folder = settings.get('music_folder', '')
             if music_folder and os.path.exists(music_folder):
-                self.folder_label.config(text=music_folder)
+                self.file_path_var.set(music_folder)
                 try:
                     self.music_player.load_playlist(music_folder)
                 except Exception as e:
                     messagebox.showwarning("אזהרה", f"לא ניתן לטעון את תיקיית המוזיקה: {str(e)}")
 
             # Restore schedules
-            self.schedules_listbox.delete(0, tk.END)
+            self.schedule_list.delete('1.0', tk.END)
             schedules = settings.get('schedules', [])
             for schedule in schedules:
                 time_str = schedule.get('time', '')
@@ -320,7 +308,7 @@ class MusicSchedulerApp:
                 stop_duration = schedule.get('stop_duration', 0)
                 if time_str:
                     self.music_scheduler.add_schedule(time_str, days, stop_duration)
-                    self.schedules_listbox.insert(tk.END, f"{time_str} - {', '.join(days)} (עצירה: {stop_duration} דקות)")
+                    self.schedule_list.insert(tk.END, f"{time_str} - {', '.join(days)}\n")
 
             # Restart scheduler to apply loaded schedules
             self.music_scheduler.stop()
@@ -331,26 +319,6 @@ class MusicSchedulerApp:
             pass
         except json.JSONDecodeError:
             messagebox.showerror("שגיאה", "קובץ ההגדרות פגום")
-
-    def save_settings(self):
-        """Save application settings to file."""
-        try:
-            settings = {
-                'volume': self.volume_var.get(),
-                'music_folder': self.folder_label.cget('text'),
-                'schedules': [
-                    {
-                        'time': schedule['time'], 
-                        'days': schedule['days'],
-                        'stop_duration': schedule['stop_duration']
-                    } for schedule in self.music_scheduler.get_schedules()
-                ]
-            }
-
-            with open('settings.json', 'w') as f:
-                json.dump(settings, f, indent=4)
-        except Exception as e:
-            messagebox.showerror("שגיאה", f"שגיאה בשמירת הגדרות: {str(e)}")
 
 def main():
     root = tk.Tk()
